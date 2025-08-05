@@ -98,7 +98,7 @@ html = f"""<!doctype html>
 </html>
 """
 
-report_path = os.path.join(OUT_DIR, "Output\top3_report.html")
+report_path = os.path.join('', r"Output\top10_report.html")
 with open(report_path, "w", encoding="utf-8") as f:
     f.write(html)
 

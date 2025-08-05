@@ -1,7 +1,43 @@
-<Actions Context="Author">
-  <Exec>
-    <Command>%SystemRoot%\System32\cmd.exe</Command>
-    <Arguments>/c "%~dp0run_all_brands.bat"</Arguments>
-    <WorkingDirectory>%~dp0</WorkingDirectory>
-  </Exec>
-</Actions>
+<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Description>Run Facebook → OCR → Pareto → PROMETHEE → Report pipeline</Description>
+  </RegistrationInfo>
+
+  <Triggers>
+    <CalendarTrigger>
+      <StartBoundary>{{TODAY}}T08:30:00</StartBoundary>
+      <Enabled>true</Enabled>
+      <ScheduleByDay>
+        <DaysInterval>1</DaysInterval>
+      </ScheduleByDay>
+      <Repetition>
+        <Interval>PT6H</Interval>
+        <Duration>P1D</Duration>
+      </Repetition>
+    </CalendarTrigger>
+  </Triggers>
+
+  <Principals>
+    <Principal id="Author">
+      <LogonType>Password</LogonType>
+      <RunLevel>HighestAvailable</RunLevel>
+    </Principal>
+  </Principals>
+
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <ExecutionTimeLimit>PT2H</ExecutionTimeLimit>
+    <Priority>7</Priority>
+  </Settings>
+
+  <Actions Context="Author">
+    <Exec>
+      <Command>%SystemRoot%\System32\cmd.exe</Command>
+      <Arguments>/c "{{CLONED_PATH}}\run_all_brands.bat"</Arguments>
+      <WorkingDirectory>{{CLONED_PATH}}</WorkingDirectory>
+    </Exec>
+  </Actions>
+</Task>
