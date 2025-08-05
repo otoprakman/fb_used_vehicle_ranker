@@ -18,12 +18,6 @@
     </CalendarTrigger>
   </Triggers>
 
-  <Principals>
-    <Principal id="Author">
-      <LogonType>Password</LogonType>
-      <RunLevel>HighestAvailable</RunLevel>
-    </Principal>
-  </Principals>
 
   <Settings>
     <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>

@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 rem —------ user-specific creds/env file —------
-set ENV_FILE=C:\conf\creds.env
+set ENV_FILE=%~dp0creds.env
 
 if not exist "%ENV_FILE%" (
     echo [ERROR] %ENV_FILE% not found & exit /b 1
