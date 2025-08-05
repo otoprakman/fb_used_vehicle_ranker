@@ -1,0 +1,11 @@
+# --- virtual environment -------------------------------------------------
+env/
+
+# --- runtime artifacts ---------------------------------------------------
+logs/
+screenshots/
+screenshots_OLD/
+Output/
+
+# --- secrets / local config ---------------------------------------------
+creds.env

@@ -1,0 +1,7 @@
+<Actions Context="Author">
+  <Exec>
+    <Command>%SystemRoot%\System32\cmd.exe</Command>
+    <Arguments>/c "%~dp0run_all_brands.bat"</Arguments>
+    <WorkingDirectory>%~dp0</WorkingDirectory>
+  </Exec>
+</Actions>
