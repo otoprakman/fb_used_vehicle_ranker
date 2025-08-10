@@ -1,11 +1,13 @@
 import pandas as pd
 from datetime import datetime
-
+import numpy as np
 # Step 1: Load the dataset
 df = pd.read_csv(r'screenshots\structured_results.csv')
 
 # Clean mileage
-df['mileage'] = df['mileage'].replace('[^0-9]', '', regex=True).astype(float)
+df['mileage'] = df['mileage'].replace('[^0-9]', '', regex=True)
+df['mileage'] = df['mileage'].replace('', np.nan)  # Replace empty strings with NaN
+df['mileage'] = df['mileage'].astype(float)
 s = df['listed_days_ago'].astype(str).str.replace(r'[^0-9.]', '', regex=True)
 df['listed_days_ago'] = pd.to_numeric(s, errors='coerce')  # '' -> NaN
 # Initialize is_pareto column
@@ -48,6 +50,8 @@ for (brand, model), group in df.groupby(['brand', 'model']):
             df.at[i, 'is_pareto'] = True
 
 # Calculate average yearly mileage
+df['model_year'] = pd.to_numeric(df['model_year'], errors='coerce')
+
 df['avg_yearly_mileage'] = df['mileage'] / (datetime.now().year - df['model_year'])
 
 # Create mileage_suspect column

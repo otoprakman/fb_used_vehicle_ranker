@@ -5,6 +5,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
 from webdriver_manager.chrome import ChromeDriverManager
 
 import os
@@ -100,6 +101,76 @@ def matches_brand(src_lower: str, brand: str) -> bool:
     # Basic brand gate; you can enhance (e.g., also allow model names)
     return brand.lower() in src_lower
 
+# --- Helper ---
+def human_typing(element, text, delay=0.1):
+    for char in text:
+        element.send_keys(char)
+        time.sleep(delay + random.uniform(0, 0.05))
+# -------------------- NEW: DETECT DEALER VS INDIVIDUAL --------------------- #
+
+from selenium.common.exceptions import TimeoutException
+
+def seller_is_dealer(driver, wait, timeout=8, dealer_threshold=3) -> bool:
+    """
+    Opens the seller's Marketplace *profile* and counts active listings.
+    Returns True  -> Dealer  (≥2 listings)
+            False -> Individual
+    """
+    try:
+        # Seller card container
+        card = wait.until(
+            EC.presence_of_element_located(
+                (By.XPATH,
+                 "//div[contains(translate(.,'SELLER INFORMATION','seller information'),"
+                 "'seller information')]")
+            )
+        )
+        # Profile <a>: starts with /marketplace/profile/  OR  full FB URL
+        seller_link = card.find_element(
+            By.XPATH,
+            ".//a[starts-with(@href,'/marketplace/profile/') or "
+            "starts-with(@href,'https://www.facebook.com/marketplace/profile/')]"
+        )
+    except TimeoutException:
+        print("   [WARN] Seller profile link not found – assume Individual.")
+        return False
+    # --- Build absolute URL if needed -----------------------------------
+    href = seller_link.get_attribute("href")
+    if href.startswith("/"):
+        href = "https://www.facebook.com" + href
+    # --- Open in new tab -------------------------------------------------
+    driver.execute_script("window.open(arguments[0], '_blank');", href)
+    driver.switch_to.window(driver.window_handles[-1])
+    # trigger lazy-load
+    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+    try:
+        # ① grab every vehicle anchor in the whole page
+        raw_links = WebDriverWait(driver, timeout).until(
+            EC.presence_of_all_elements_located(
+                (By.XPATH, "//a[contains(@href,'/marketplace/item/')]")
+            )
+        )
+        # ② keep only those that have a seller-ref tag
+        seller_hrefs = {
+            a.get_attribute("href").split("?")[0]
+            for a in raw_links
+            if a.get_attribute("href") and
+               ("?ref=marketplace_profile" in a.get_attribute("href") or
+                "?ref=marketplace"         in a.get_attribute("href"))
+        }
+        print(f"   seller_hrefs = {len(seller_hrefs)}")   # <-- keeps printing
+        print(seller_hrefs)
+        is_dealer = len(seller_hrefs) >= dealer_threshold     # default 2
+    except TimeoutException:
+        is_dealer = False
+    finally:
+        driver.close()
+        driver.switch_to.window(driver.window_handles[0])
+    return is_dealer
+
+
+# --------------------------------------------------------------------------- #
+
 
 options = webdriver.ChromeOptions()
 options.add_argument("--start-maximized")
@@ -111,15 +182,12 @@ options.add_argument("--disable-notifications")
 driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 wait = WebDriverWait(driver, 10)
 
-# --- Helper ---
-def human_typing(element, text, delay=0.1):
-    for char in text:
-        element.send_keys(char)
-        time.sleep(delay + random.uniform(0, 0.05))
+
 
 time.sleep(random.uniform(1, 2))
 # --- Login ---
 driver.get("https://www.facebook.com/login")
+time.sleep(random.uniform(3, 5))
 wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
 
 try:
@@ -133,6 +201,7 @@ try:
 except Exception:
     # If already logged in via profile, this block may fail silently — that's fine.
     pass
+
 time.sleep(random.uniform(5, 8))
 # --- Go to Vehicles and Search ---
 driver.get("https://www.facebook.com/marketplace/category/vehicles/")
@@ -228,9 +297,12 @@ for i, href in enumerate(all_hrefs, start=1):
             time.sleep(1.2)
         except Exception:
             pass
-        # Save screenshot (idempotent)
-        shot_name = f"listing_{item_id}.png"
+        # -------- NEW: decide Dealer vs Individual -------------------------------
+        dealer_flag = seller_is_dealer(driver, wait)
+        prefix = "Dealer" if dealer_flag else "Individual"
+        shot_name = f"{prefix}_listing_{item_id}.png"
         shot_path = os.path.join(OUT_DIR, shot_name)
+        # Save screenshot (idempotent)
         if os.path.exists(shot_path) and not FORCE_RETAKE:
             print(f" Exists, not overwriting: {shot_name}")
         else:
