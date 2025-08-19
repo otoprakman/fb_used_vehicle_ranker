@@ -26,7 +26,7 @@ for col in ["price", "model_year", "condition_rating", "listed_days_ago"]:
 from datetime import datetime
 current_year = datetime.now().year
 df["age"] = current_year - df["model_year"]
-df = df[(df['age']<=15)&(df['avg_yearly_mileage']>10000)&(df['listed_days_ago']<7)&(df['title_type']==3)&(df['price']<=6000)&(df['price']>=3500)]
+# df = df[(df['age']<=15)&(df['avg_yearly_mileage']>10000)&(df['listed_days_ago']<7)&(df['title_type']==3)&(df['price']<=6000)&(df['price']>=3500)]
 
 # Drop rows missing key pieces we need to rank
 rank_df = df.dropna(subset=["price", "age"]).copy()
