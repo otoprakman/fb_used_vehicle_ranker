@@ -16,7 +16,7 @@ weights = {
     'mpg': 0.05,
     'condition_rating': 0.05,
     'title_type': 0.15,
-    'mileage_suspect': 0.1
+    'avg_yearly_mileage': 0.1
 }
 
 directions = {
@@ -26,7 +26,7 @@ directions = {
     'mpg': 'max',
     'condition_rating': 'max',
     'title_type': 'max',
-    'mileage_suspect': 'min'
+    'avg_yearly_mileage': 'max'
 }
 
 # V-shape preference function

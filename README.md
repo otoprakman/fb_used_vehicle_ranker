@@ -28,7 +28,7 @@ Automates the whole “scroll Facebook Marketplace for hours” routine:
 ## 2  Clone & install
 
 ```powershell
-git clone https://github.com/<your-user>/fb_used_vehicle_ranker.git
+git clone https://github.com/otoprakman/fb_used_vehicle_ranker.git
 cd fb_used_vehicle_ranker
 
 # create & activate a venv  (choose the tool you like)
@@ -39,13 +39,16 @@ pip install -r requirements.txt
 ```
 ## 3 Configure 📄creds.env
 
-Copy the sample (if provided) or create a new file at repo root named creds.env.
+Create a new file at repo root named creds.env.
 
 Add your own keys — everything lives in one place:
 ```ini
 # --- Facebook login ---
 FB_EMAIL=you@example.com
 FB_PASSWORD=super-secret-password
+
+# --- OPENAI KEY ---
+OPENAI_API_KEY_FBAPP=ultra-secret-key
 
 # --- Run-time settings ---
 BRANDS="Toyota Prius" "Honda Civic" "Nissan Altima"
@@ -76,7 +79,7 @@ powershell -ExecutionPolicy Bypass -File .\setup_task.ps1
 ```
 Creates a task named FB-Pipeline
 
-Runs at 08:30 and repeats every 6 h (edit inside creds.env if you ship that knob)
+Runs at 08:30 and repeats every 6 h (edit inside fb_pipeline_daily if you ship that knob)
 
 Uses the same creds.env for creds & tuning
 
@@ -84,21 +87,32 @@ Uses the same creds.env for creds & tuning
 
 Open Task Scheduler → Action → Import Task…
 
-Select task_template.xml.
+Select fb_pipeline_daily.xml.
 
 In the dialog, replace each {{CLONED_PATH}} with your repo path, save.
 
 ## 6 Customising
+
 Want…	Do this
+
+Ranking logic (Pareto + PROMETHEE) requires weights for different criteria, adjust the weights in promethee_ranker.py
+
 More/fewer brands	Edit BRANDS= list in creds.env
+
 Different scroll depth	Change SCROLLS=
-Run every 3 hours	Edit <Interval>PT3H</Interval> in task_template.xml or expose it in creds.env and tweak setup_task.ps1
+
+Run every 3 hours	Edit <Interval>PT3H</Interval> in fb_pipeline_daily.xml or expose it in creds.env and tweak setup_task.ps1
+
 Debug Selenium	Set DEBUG=1 in creds.env (code checks for it) and the browser stays visible
 
 ## 7 Troubleshooting
+
 Symptom	Fix
+
 Task runs but window closes instantly	Change /c → /k in Task Scheduler “Arguments” to keep the console open.
+
 Stale‐element or human-check pop-ups	Increase RETRIES/WAIT in creds.env; update ChromeDriver to match Chrome.
+
 Push rejected on GitHub	git pull --rebase origin main then git push (see README “first push” section).
 
 ## 8 Legal & ethics

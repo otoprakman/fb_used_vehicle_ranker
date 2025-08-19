@@ -29,7 +29,7 @@ args = _parse_args()
 OPENAI_API_KEY = getenv("OPENAI_API_KEY_FBAPP")
 if not OPENAI_API_KEY:
     raise SystemExit("OPENAI_API_KEY_FBAPP is missing. Add it to .env or your environment.")
-USER_CITY = args.user_city if args.user_city else 'Hoffman Estates, IL'
+USER_CITY = args.user_city if args.user_city else 'Chicago, IL'
 OUT_DIR = "screenshots"
 LINKS_CSV = os.path.join(OUT_DIR, "links.csv")
 STRUCTURED_CSV = os.path.join(OUT_DIR, "structured_results.csv")

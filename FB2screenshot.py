@@ -28,7 +28,7 @@ except Exception:
 def _parse_args():
     p = argparse.ArgumentParser(description="Facebook Marketplace screenshots")
     p.add_argument("--search", default=None, help="Marketplace search query")
-    p.add_argument("--city", default=None, help="City/location filter (if supported on your UI)")
+    p.add_argument("--user-city", default=None, help="City/location filter (if supported on your UI)")
     p.add_argument("--price-min", type=int, dest="price_min", default=None)
     p.add_argument("--price-max", type=int, dest="price_max", default=None)
     p.add_argument("--scrolls", type=int, default=None, help="Number of times to scroll results list")
@@ -108,7 +108,6 @@ def human_typing(element, text, delay=0.1):
         time.sleep(delay + random.uniform(0, 0.05))
 # -------------------- NEW: DETECT DEALER VS INDIVIDUAL --------------------- #
 
-from selenium.common.exceptions import TimeoutException
 
 def seller_is_dealer(driver, wait, timeout=8, dealer_threshold=3) -> bool:
     """
@@ -176,12 +175,14 @@ options = webdriver.ChromeOptions()
 options.add_argument("--start-maximized")
 options.add_argument("--disable-notifications")
 # Note: typically pass the *profile root* (e.g., ...\User Data), not the "Default" folder.
-# options.add_argument(r"--user-data-dir=C:\Users\otopr\AppData\Local\Google\Chrome\User Data")
+# options.add_argument(r"--user-data-dir=C:\Users\YOURID\AppData\Local\Google\Chrome\User Data")
 # options.add_argument("--profile-directory=Default")
 
 driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 wait = WebDriverWait(driver, 10)
-
+if args.headless:
+    options.add_argument("--headless=new")
+    options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
 
 
 time.sleep(random.uniform(1, 2))
@@ -245,7 +246,7 @@ for s in range(NUM_SCROLLS):
     driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
     time.sleep(random.randint(5, 10))
 
-print(f"\ Collected {len(all_hrefs)} unique item links across {NUM_SCROLLS} scrolls.")
+print(f"[DONE] Collected {len(all_hrefs)} unique item links across {NUM_SCROLLS} scrolls.")
 
 # ============================
 # 2) VISIT LINKS FROM SNAPSHOT

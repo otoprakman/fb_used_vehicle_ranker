@@ -48,7 +48,7 @@ def main():
     parser.add_argument("--skip-pareto", action="store_true", help="Skip Pareto filtering.")
     parser.add_argument("--skip-rank", action="store_true", help="Skip PROMETHEE ranking.")
     parser.add_argument("--skip-report", action="store_true", help="Skip report generation.")
-    parser.add_argument("--user-city", action="store_true", help="User City for Drive Distance")
+    parser.add_argument("--user-city", type=str, default="Chicago, IL", help="User city (e.g., 'Chicago, IL')")
     parser.add_argument("--search", default=None, help="Marketplace search query")
     parser.add_argument("--scrolls", default=None, help="Marketplace scrolls count")
     parser.add_argument("--only", choices=["screenshots","ocr","pareto","rank","report"], help="Run only a single stage.")
@@ -57,7 +57,11 @@ def main():
     extra_ss_args = []
     if args.search:
         extra_ss_args += ["--search", args.search]
+    if args.scrolls:
         extra_ss_args += ["--scrolls", args.scrolls]
+    if args.user_city:
+        extra_ss_args += ["--user-city", args.user_city]
+
 
     ensure_dirs()
     ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")

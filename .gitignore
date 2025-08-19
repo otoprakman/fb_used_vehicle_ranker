@@ -9,3 +9,7 @@ Output/
 
 # --- secrets / local config ---------------------------------------------
 creds.env
+FB2screenshot_wAgent.py
+intervention_agent.py
+analysis.py
+agent_guard.py

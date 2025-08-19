@@ -11,6 +11,7 @@ if not os.path.exists(STRUCTURED_CSV):
 
 df = pd.read_csv(STRUCTURED_CSV)
 
+
 # Keep only rows with essentials
 needed = ["url", "item_id", "price", "model_year", "brand", "model", "condition_rating", "listed_days_ago"]
 for col in needed:
@@ -25,6 +26,7 @@ for col in ["price", "model_year", "condition_rating", "listed_days_ago"]:
 from datetime import datetime
 current_year = datetime.now().year
 df["age"] = current_year - df["model_year"]
+df = df[(df['age']<=15)&(df['avg_yearly_mileage']>10000)&(df['listed_days_ago']<7)&(df['title_type']==3)&(df['price']<=6000)&(df['price']>=3500)]
 
 # Drop rows missing key pieces we need to rank
 rank_df = df.dropna(subset=["price", "age"]).copy()
@@ -35,6 +37,7 @@ if rank_df.empty:
     raise ValueError("No rows with enough data to rank. Check structured_results.csv contents.")
 
 rank_df = rank_df.sort_values(by=['brand','model','promethee_rank'])
+
 # ---------- 3) Build HTML report ----------
 
 def safe_img_tag(image_filename: str) -> str:
