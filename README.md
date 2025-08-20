@@ -55,6 +55,7 @@ BRANDS="Toyota Prius" "Honda Civic" "Nissan Altima"
 RETRIES=2          # webdriver retries per search
 WAIT=20            # seconds to wait between retries
 SCROLLS=5          # how many FB scroll events per search
+USERCITY=Chicago, IL # user location for getting distance between seller and user
 ```
 ## 4 Run once to test
 ```powershell
