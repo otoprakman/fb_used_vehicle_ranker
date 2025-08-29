@@ -15,22 +15,13 @@ try:
 except Exception:
     pass  # script still works if python-dotenv isn't installed
 
-import argparse
-
-def _parse_args():
-    p = argparse.ArgumentParser(description="OCR to Structured Data")
-    p.add_argument("--user-city", default=None, help="City of the User")
-    return p.parse_known_args()[0]
-
-args = _parse_args()
-
 # -----------------------------
 # Config
 # -----------------------------
 # For local Ollama usage, an OpenAI API key is not required.
 # Keep reading the variable for potential future cloud usage, but do not enforce it.
 OPENAI_API_KEY = getenv("OPENAI_API_KEY_FBAPP") or ""
-USER_CITY = args.user_city if args.user_city else os.getenv("USER_CITY") or "Chicago, IL"
+USER_CITY = os.getenv("USER_CITY") or "Chicago, IL"
 OUT_DIR = "screenshots"
 LINKS_CSV = os.path.join(OUT_DIR, "links.csv")
 STRUCTURED_CSV = os.path.join(OUT_DIR, "structured_results.csv")
@@ -128,116 +119,126 @@ def iter_links_rows(path: str):
         reader = csv.DictReader(f)
         for row in reader:
             yield row
-# -----------------------------
-# Init
-# -----------------------------
-os.makedirs(OUT_DIR, exist_ok=True)
-client = OpenAI(base_url = 'http://localhost:11434/v1', api_key='')
+def main(user_city=None):
+    """Main function to process screenshots and structure data."""
+    global USER_CITY
+    if user_city:
+        USER_CITY = user_city
+    
+    # -----------------------------
+    # Init
+    # -----------------------------
+    os.makedirs(OUT_DIR, exist_ok=True)
+    client = OpenAI(base_url = 'http://localhost:11434/v1', api_key='')
 
-# Workaround for SSL certificate issues when EasyOCR downloads models (e.g., on macOS)
-# Set EASYOCR_INSECURE_SSL=0 to disable this behavior and enforce certificate verification.
-if (os.getenv("EASYOCR_INSECURE_SSL", "1").strip().lower() in ("1", "true", "yes")):
-    try:
-        ssl._create_default_https_context = ssl._create_unverified_context
-    except Exception:
-        pass
-
-reader = easyocr.Reader(['en'])
-
-# Prepare structured CSV in append mode; write header only if new
-structured_exists = os.path.exists(STRUCTURED_CSV)
-out_f = open(STRUCTURED_CSV, "a", newline="", encoding="utf-8")
-fieldnames = [
-    # linkage + identity
-    "run_ts", "index_hint", "item_id", "url",
-    # original files
-    "Image", "ExtractedText",
-    # extracted from LLM
-    "model_year", "brand", "model", "price", "location","distance_away", "mileage", "mpg",
-    "title_type", "exterior_color", "condition_rating", "seller_name", "listed_days_ago",
-]
-writer = csv.DictWriter(out_f, fieldnames=fieldnames)
-if not structured_exists:
-    writer.writeheader()
-
-# Dedupe sets from prior structured_results.csv
-processed_item_ids, processed_images = load_existing_structured_keys(STRUCTURED_CSV)
-
-# -----------------------------
-# Main loop: iterate links.csv rows -> OCR -> OpenAI -> append
-# -----------------------------
-rows_processed = 0
-rows_skipped = 0
-
-for row in iter_links_rows(LINKS_CSV):
-    run_ts = row.get("run_ts", "")
-    index_hint = row.get("index_hint", "")
-    item_id = (row.get("item_id") or "").strip()
-    url = row.get("url", "")
-    image_file = row.get("screenshot_file", "")  # e.g., listing_<item_id>.png
-    image_path = os.path.join(OUT_DIR, image_file) if image_file else ""
-    # Deduping: prefer item_id, fallback to Image filename
-    if item_id and item_id in processed_item_ids:
-        rows_skipped += 1
-        continue
-    if (not item_id) and image_file and image_file in processed_images:
-        rows_skipped += 1
-        continue
-    if not image_path or not os.path.exists(image_path):
-        print(f"  Screenshot not found, skipping: {image_file}")
-        rows_skipped += 1
-        continue
-    print(f"\ Processing item_id={item_id or 'N/A'} image={image_file}")
-    # OCR
-    try:
-        ocr_text_lines = reader.readtext(image_path, detail=0)
-        extracted_text = " ".join(ocr_text_lines)
-        print(f" OCR (first 120 chars): {extracted_text[:120]}...")
-    except Exception as e:
-        print(f" OCR failed for {image_file}: {e}")
-        extracted_text = ""
-    # OpenAI extraction
-    structured = {}
-    if extracted_text:
+    # Workaround for SSL certificate issues when EasyOCR downloads models (e.g., on macOS)
+    # Set EASYOCR_INSECURE_SSL=0 to disable this behavior and enforce certificate verification.
+    if (os.getenv("EASYOCR_INSECURE_SSL", "1").strip().lower() in ("1", "true", "yes")):
         try:
-            structured = ask_openai_structured_data(client, extracted_text)
-            print(f" Structured: {structured}")
-        except Exception as e:
-            print(" OpenAI error:", e)
-            structured = {}
-    # Append row
-    row_out = {
-        "run_ts": run_ts,
-        "index_hint": index_hint,
-        "item_id": item_id,
-        "url": url,
-        "Image": image_file,
-        "ExtractedText": extracted_text,
-        "model_year": structured.get("model_year"),
-        "brand": structured.get("brand"),
-        "model": structured.get("model"),
-        "price": structured.get("price"),
-        "location": structured.get("location"),
-        "distance_away": structured.get("distance_away"),
-        "mileage": structured.get("mileage"),
-        "mpg": structured.get("mpg"),
-        "title_type": structured.get("title_type"),
-        "exterior_color": structured.get("exterior_color"),
-        "condition_rating": structured.get("condition_rating"),
-        "seller_name": structured.get("seller_name"),
-        "listed_days_ago": structured.get("listed_days_ago"),
-    }
-    print(row_out)
-    writer.writerow(row_out)
-    out_f.flush()
-    # Update dedupe sets
-    if item_id:
-        processed_item_ids.add(item_id)
-    elif image_file:
-        processed_images.add(image_file)
-    rows_processed += 1
-    time.sleep(1)  # polite pacing for API limits
+            ssl._create_default_https_context = ssl._create_unverified_context
+        except Exception:
+            pass
 
-out_f.close()
-print(f"\ Done. Appended {rows_processed} rows to {STRUCTURED_CSV} (skipped {rows_skipped} already-processed).")
+    reader = easyocr.Reader(['en'])
+
+    # Prepare structured CSV in append mode; write header only if new
+    structured_exists = os.path.exists(STRUCTURED_CSV)
+    out_f = open(STRUCTURED_CSV, "a", newline="", encoding="utf-8")
+    fieldnames = [
+        # linkage + identity
+        "run_ts", "index_hint", "item_id", "url",
+        # original files
+        "Image", "ExtractedText",
+        # extracted from LLM
+        "model_year", "brand", "model", "price", "location","distance_away", "mileage", "mpg",
+        "title_type", "exterior_color", "condition_rating", "seller_name", "listed_days_ago",
+    ]
+    writer = csv.DictWriter(out_f, fieldnames=fieldnames)
+    if not structured_exists:
+        writer.writeheader()
+
+    # Dedupe sets from prior structured_results.csv
+    processed_item_ids, processed_images = load_existing_structured_keys(STRUCTURED_CSV)
+
+    # -----------------------------
+    # Main loop: iterate links.csv rows -> OCR -> OpenAI -> append
+    # -----------------------------
+    rows_processed = 0
+    rows_skipped = 0
+
+    for row in iter_links_rows(LINKS_CSV):
+        run_ts = row.get("run_ts", "")
+        index_hint = row.get("index_hint", "")
+        item_id = (row.get("item_id") or "").strip()
+        url = row.get("url", "")
+        image_file = row.get("screenshot_file", "")  # e.g., listing_<item_id>.png
+        image_path = os.path.join(OUT_DIR, image_file) if image_file else ""
+        # Deduping: prefer item_id, fallback to Image filename
+        if item_id and item_id in processed_item_ids:
+            rows_skipped += 1
+            continue
+        if (not item_id) and image_file and image_file in processed_images:
+            rows_skipped += 1
+            continue
+        if not image_path or not os.path.exists(image_path):
+            print(f"  Screenshot not found, skipping: {image_file}")
+            rows_skipped += 1
+            continue
+        print(f"\ Processing item_id={item_id or 'N/A'} image={image_file}")
+        # OCR
+        try:
+            ocr_text_lines = reader.readtext(image_path, detail=0)
+            extracted_text = " ".join(ocr_text_lines)
+            print(f" OCR (first 120 chars): {extracted_text[:120]}...")
+        except Exception as e:
+            print(f" OCR failed for {image_file}: {e}")
+            extracted_text = ""
+        # OpenAI extraction
+        structured = {}
+        if extracted_text:
+            try:
+                structured = ask_openai_structured_data(client, extracted_text)
+                print(f" Structured: {structured}")
+            except Exception as e:
+                print(" OpenAI error:", e)
+                structured = {}
+        # Append row
+        row_out = {
+            "run_ts": run_ts,
+            "index_hint": index_hint,
+            "item_id": item_id,
+            "url": url,
+            "Image": image_file,
+            "ExtractedText": extracted_text,
+            "model_year": structured.get("model_year"),
+            "brand": structured.get("brand"),
+            "model": structured.get("model"),
+            "price": structured.get("price"),
+            "location": structured.get("location"),
+            "distance_away": structured.get("distance_away"),
+            "mileage": structured.get("mileage"),
+            "mpg": structured.get("mpg"),
+            "title_type": structured.get("title_type"),
+            "exterior_color": structured.get("exterior_color"),
+            "condition_rating": structured.get("condition_rating"),
+            "seller_name": structured.get("seller_name"),
+            "listed_days_ago": structured.get("listed_days_ago"),
+        }
+        print(row_out)
+        writer.writerow(row_out)
+        out_f.flush()
+        # Update dedupe sets
+        if item_id:
+            processed_item_ids.add(item_id)
+        elif image_file:
+            processed_images.add(image_file)
+        rows_processed += 1
+        time.sleep(1)  # polite pacing for API limits
+
+    out_f.close()
+    print(f"\ Done. Appended {rows_processed} rows to {STRUCTURED_CSV} (skipped {rows_skipped} already-processed).")
+
+
+if __name__ == "__main__":
+    main()
 

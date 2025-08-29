@@ -22,9 +22,33 @@ set REPO=%~dp0
 set PY="%REPO%env\Scripts\python.exe"
 set SCRIPT="%REPO%run_pipeline.py"
 
-for %%B in (%FB_SEARCH_TERM%) do (
-    echo ==== %%~B ====
-    %PY% %SCRIPT% --retries %RETRIES% --wait %WAIT% --scrolls %SCROLLS% --search "%%~B" --user-city "%USER_CITY%"
+rem Prefer comma-separated list for multi-word terms; if no comma, treat as a single term
+set "__LIST=%FB_SEARCH_TERM%"
+set "__REMAINDER=%__LIST%"
+
+if not "%__LIST:%=_%"=="%__LIST%" goto :_loop_by_comma
+
+rem No commas -> single run with entire string
+echo ==== %__LIST% ====
+%PY% %SCRIPT% --retries %RETRIES% --wait %WAIT% --scrolls %SCROLLS% --search "%__LIST%" --user-city "%USER_CITY%"
+goto :eof
+
+:_loop_by_comma
+:again
+for /f "tokens=1* delims=," %%A in ("%__REMAINDER%") do (
+    set "__ITEM=%%~A"
 )
+setlocal enabledelayedexpansion
+set "__ITEM=!__ITEM:~0!"
+for /f "tokens=* delims= " %%Z in ("!__ITEM!") do set "__ITEM=%%~Z"
+endlocal & set "__ITEM=%__ITEM%"
+if not "%__ITEM%"=="" (
+    echo ==== %__ITEM% ====
+    %PY% %SCRIPT% --retries %RETRIES% --wait %WAIT% --scrolls %SCROLLS% --search "%__ITEM%" --user-city "%USER_CITY%"
+)
+for /f "tokens=1* delims=," %%A in ("%__REMAINDER%") do (
+    set "__REMAINDER=%%~B"
+)
+if defined __REMAINDER goto again
 
 exit /b 0
