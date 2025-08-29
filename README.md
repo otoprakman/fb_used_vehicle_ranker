@@ -15,25 +15,30 @@ Automates the whole “scroll Facebook Marketplace for hours” routine:
 
 | Tool | Tested Version | Notes |
 |------|----------------|-------|
-| **Windows 10/11** | — | Scripted for Windows paths & Task Scheduler |
+| **Windows 10/11** or **macOS/Linux** | — | Cross-platform support with .bat and .sh scripts |
 | **Python 3.11**  | (any 3.9+) | Installed _outside_ this repo |
 | **Google Chrome** | latest | Same major version as ChromeDriver |
-| **ChromeDriver** | e.g. 124.x | Put in `env\Scripts\` or add to `PATH` |
+| **ChromeDriver** | e.g. 124.x | Put in `env\Scripts\` (Windows) or `env/bin/` (Unix) or add to `PATH` |
 | **Git** | any | To clone the repo |
 
-> 💡 If you prefer WSL, macOS, or Linux: only Task Scheduler pieces differ; the rest runs the same.
+> 💡 Task Scheduler automation is Windows-specific, but the core pipeline runs on any platform.
 
 ---
 
 ## 2  Clone & install
 
-```powershell
+```bash
 git clone https://github.com/otoprakman/fb_used_vehicle_ranker.git
 cd fb_used_vehicle_ranker
 
-# create & activate a venv  (choose the tool you like)
+# create & activate a venv
 python -m venv env
+
+# Windows:
 .\env\Scripts\activate
+
+# macOS/Linux:
+source env/bin/activate
 
 pip install -r requirements.txt
 ```
@@ -51,15 +56,22 @@ FB_PASSWORD=super-secret-password
 OPENAI_API_KEY_FBAPP=ultra-secret-key
 
 # --- Run-time settings ---
-BRANDS="Toyota Prius" "Honda Civic" "Nissan Altima"
+FB_SEARCH_TERM="Toyota Prius" "Honda Civic" "Nissan Altima"
 RETRIES=2          # webdriver retries per search
 WAIT=20            # seconds to wait between retries
 SCROLLS=5          # how many FB scroll events per search
 USERCITY=Chicago, IL # user location for getting distance between seller and user
 ```
 ## 4 Run once to test
-```powershell
+
+**Windows:**
+```cmd
 .\run_all_brands.bat
+```
+
+**macOS/Linux:**
+```bash
+./run_all_brands.sh
 ```
 Expected:
 
@@ -98,7 +110,7 @@ Want…	Do this
 
 Ranking logic (Pareto + PROMETHEE) requires weights for different criteria, adjust the weights in promethee_ranker.py
 
-More/fewer brands	Edit BRANDS= list in creds.env
+More/fewer brands	Edit FB_SEARCH_TERM= list in creds.env
 
 Different scroll depth	Change SCROLLS=
 
