@@ -20,7 +20,7 @@ from pathlib import Path
 from os import getenv
 try:
     from dotenv import load_dotenv
-    load_dotenv("creds.env")  # loads .env in the same folder
+    load_dotenv("creds.env", override=True)  # loads .env in the same folder
 except Exception:
     pass  # script still works if python-dotenv isn't installed
 
@@ -33,7 +33,7 @@ def _parse_args():
     p.add_argument("--price-max", type=int, dest="price_max", default=None)
     p.add_argument("--scrolls", type=int, default=None, help="Number of times to scroll results list")
     p.add_argument("--headless", action="store_true", help="Run Chrome in headless mode")
-    return p.parse_args()
+    return p.parse_known_args()[0]
 
 args = _parse_args()
 
@@ -44,7 +44,7 @@ PASSWORD = getenv("FB_PASSWORD")
 if not EMAIL or not PASSWORD:
     raise SystemExit("EMAIL OR PASS are missing. Add it to .env or your environment.")
 
-SEARCH_TERM = args.search if args.search else " "
+FB_SEARCH_TERM = args.search if args.search else getenv("FB_SEARCH_TERM")
 NUM_SCROLLS = args.scrolls if args.scrolls else 2
 OUT_DIR = "screenshots"
 FINAL_OUT_DIR = "Output"
@@ -213,10 +213,9 @@ try:
     search_input = driver.find_element(By.XPATH, "//input[contains(@placeholder, 'Search Marketplace')]")
     search_input.click()
     time.sleep(random.randint(1, 3))
-    query = args.search if args.search else " "  # if no search provided, keep your current default or blank
-    human_typing(search_input, SEARCH_TERM, delay=random.uniform(0.05, 0.15))
+    human_typing(search_input, FB_SEARCH_TERM, delay=random.uniform(0.05, 0.15))
     search_input.send_keys(Keys.RETURN)
-    print(f"[OKAY] Searched for '{SEARCH_TERM}'")
+    print(f"[OKAY] Searched for '{FB_SEARCH_TERM}'")
     time.sleep(random.randint(5, 8))
 except Exception as e:
     print("[ERROR] Search bar error:", e)
@@ -286,8 +285,8 @@ for i, href in enumerate(all_hrefs, start=1):
             print("  Non-vehicle page. Skipping.")
             if OPEN_IN_NEW_TAB: close_tab_and_back_to_results()
             continue
-        if not matches_brand(page_lower, SEARCH_TERM):
-            print(f"  Brand mismatch; expected '{SEARCH_TERM}'. Skipping.")
+        if not matches_brand(page_lower, FB_SEARCH_TERM):
+            print(f"  Brand mismatch; expected '{FB_SEARCH_TERM}'. Skipping.")
             if OPEN_IN_NEW_TAB: close_tab_and_back_to_results()
             continue
         # Expand description if present (optional)
