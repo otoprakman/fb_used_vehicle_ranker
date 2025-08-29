@@ -5,6 +5,12 @@ from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
 from geopy.exc import GeocoderTimedOut
 import argparse
+import os
+try:
+    from dotenv import load_dotenv
+    load_dotenv("creds.env", override=True)
+except Exception:
+    pass
 
 # Step 1: Load the dataset
 df = pd.read_csv(r'screenshots\structured_results.csv')
@@ -12,11 +18,11 @@ df = pd.read_csv(r'screenshots\structured_results.csv')
 def _parse_args():
     p = argparse.ArgumentParser(description="Pareto Finder")
     p.add_argument("--user-city", default=None, help="City of the User")
-    return p.parse_args()
+    return p.parse_known_args()[0]
 
 args = _parse_args()
 
-USER_CITY = args.user_city if args.user_city else 'Chicago, IL'
+USER_CITY = args.user_city if args.user_city else os.getenv("USER_CITY") or 'Chicago, IL'
 
 # Clean mileage
 df['mileage'] = df['mileage'].replace('[^0-9]', '', regex=True)
