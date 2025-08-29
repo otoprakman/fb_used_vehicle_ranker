@@ -33,6 +33,7 @@ def _parse_args():
     p.add_argument("--price-max", type=int, dest="price_max", default=None)
     p.add_argument("--scrolls", type=int, default=None, help="Number of times to scroll results list")
     p.add_argument("--headless", action="store_true", help="Run Chrome in headless mode")
+    p.add_argument("--fast-mode", dest="fast_mode", action="store_true", help="Do not visit each link; after search+scroll, screenshot the grid cards directly")
     return p.parse_known_args()[0]
 
 args = _parse_args()
@@ -248,9 +249,129 @@ for s in range(NUM_SCROLLS):
 print(f"[DONE] Collected {len(all_hrefs)} unique item links across {NUM_SCROLLS} scrolls.")
 
 # ============================
-# 2) VISIT LINKS FROM SNAPSHOT
+# FAST MODE: SCREENSHOT GRID CARDS WITHOUT VISITING LINKS
 # ============================
 run_ts = datetime.now().isoformat(timespec="seconds")
+
+if getattr(args, "fast_mode", False):
+    print("[FAST-MODE] Taking screenshots of grid cards without visiting each listing…")
+    processed_this_run = 0
+    skipped_this_run = 0
+
+    # Build mapping from cleaned href to element for current DOM
+    card_anchors = driver.find_elements(By.XPATH, "//a[contains(@href, '/marketplace/item/')]")
+    href_to_el = {}
+    for el in card_anchors:
+        try:
+            href_raw = el.get_attribute("href") or ""
+            if not href_raw:
+                continue
+            href_clean = clean_url(href_raw)
+            if href_clean not in href_to_el:
+                href_to_el[href_clean] = el
+        except Exception:
+            continue
+
+    # Start from top to maximize chance that earlier items are present
+    try:
+        driver.execute_script("window.scrollTo(0, 0);")
+        time.sleep(random.uniform(0.5, 1.0))
+    except Exception:
+        pass
+
+    def find_card_element_by_id(item_id: str, max_swipes: int = 35):
+        """Try to locate the anchor for an item_id by progressively scrolling down.
+        Returns the WebElement or None if not found after full scan.
+        """
+        # quick try in current viewport
+        try:
+            return driver.find_element(By.XPATH, f"//a[contains(@href, '{item_id}')]")
+        except Exception:
+            pass
+        # progressive scroll down
+        for _ in range(max_swipes):
+            try:
+                driver.execute_script("window.scrollBy(0, Math.max(600, window.innerHeight - 200));")
+            except Exception:
+                pass
+            time.sleep(random.uniform(0.35, 0.7))
+            try:
+                el2 = driver.find_element(By.XPATH, f"//a[contains(@href, '{item_id}')]")
+                return el2
+            except Exception:
+                continue
+        return None
+
+    for i, href in enumerate(all_hrefs, start=1):
+        try:
+            item_id = extract_item_id(href) or f"noid_{hash(href) & 0xffffffff}"
+            # De-dupe across runs
+            if item_id in processed_ids:
+                skipped_this_run += 1
+                continue
+
+            el = href_to_el.get(href)
+            if el is None:
+                # Try within viewport, then progressively scroll down to find it
+                el = find_card_element_by_id(item_id)
+                if el is None:
+                    print(f"  [WARN] Could not locate card element for {href}; skipping.")
+                    continue
+
+            # Re-find right before screenshot in case the previous reference went stale
+            try:
+                el = driver.find_element(By.XPATH, f"//a[contains(@href, '{item_id}')]")
+            except Exception:
+                el = None
+            if el is None:
+                el = find_card_element_by_id(item_id)
+                if el is None:
+                    print(f"  [WARN] Could not relocate card element for {href}; skipping.")
+                    continue
+
+            # Scroll into view and screenshot
+            try:
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", el)
+                time.sleep(random.uniform(0.4, 0.9))
+            except Exception:
+                pass
+
+            shot_name = f"Grid_listing_{item_id}.png"
+            shot_path = os.path.join(OUT_DIR, shot_name)
+            if os.path.exists(shot_path) and not FORCE_RETAKE:
+                print(f" Exists, not overwriting: {shot_name}")
+            else:
+                try:
+                    el.screenshot(shot_path)
+                    print(f" Screenshot saved: {shot_name}")
+                except Exception as se:
+                    print(f"  [WARN] Failed to capture element screenshot for {item_id}: {se}")
+                    # As a fallback, page-level screenshot with a different suffix
+                    try:
+                        driver.save_screenshot(shot_path)
+                        print(f"  [FALLBACK] Page screenshot saved: {shot_name}")
+                    except Exception:
+                        pass
+
+            index_hint = f"grid_snapshot_{i}"
+            csv_writer.writerow([run_ts, index_hint, item_id, href, shot_name])
+            links_file.flush()
+            processed_ids.add(item_id)
+            processed_this_run += 1
+            time.sleep(random.uniform(0.2, 0.6))
+        except Exception as e:
+            print(f" Error on grid card {i}: {e}")
+            continue
+
+    # Cleanup and exit fast mode path
+    links_file.close()
+    driver.quit()
+    print(f"\ Done. [FAST-MODE] Added {processed_this_run} items (skipped {skipped_this_run} previously processed).")
+    raise SystemExit(0)
+
+# ============================
+# 2) VISIT LINKS FROM SNAPSHOT
+# ============================
 
 def open_in_new_tab_and_focus(href: str):
     # open detail in new tab and switch

@@ -60,9 +60,53 @@ FB_SEARCH_TERM="Toyota Prius" "Honda Civic" "Nissan Altima"
 RETRIES=2          # webdriver retries per search
 WAIT=20            # seconds to wait between retries
 SCROLLS=5          # how many FB scroll events per search
-USERCITY=Chicago, IL # user location for getting distance between seller and user
+USER_CITY=Chicago, IL # user location for getting distance between seller and user
 ```
-## 4 Run once to test
+## 4 Install Ollama and pull the Llama model (required for local GPT)
+
+This project uses a local LLM via Ollama. The code is configured to call an OpenAI-compatible endpoint at http://localhost:11434 with the model name `llama3.2:3b`.
+
+- Why: `screenshot2structured_data.py` sends prompts to a local Llama model through Ollama, so no cloud API calls are needed for the extraction step.
+- Port: Ollama serves the OpenAI-compatible API at 11434 by default.
+
+Steps:
+1) Install Ollama
+- macOS or Linux (official script):
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+```
+- macOS (Homebrew alternative):
+```bash
+brew install ollama
+```
+- Windows (any of the following):
+```powershell
+winget install Ollama.Ollama
+```
+Or download/install from: https://ollama.com/download/windows
+
+2) Start the Ollama service (if not started automatically)
+```bash
+ollama serve
+```
+Note: On many systems, running `ollama run ...` will automatically start the service in the background. Ensure port 11434 is available.
+
+3) Pull the required Llama model
+```bash
+ollama pull llama3.2:3b
+```
+You can test it quickly with:
+```bash
+ollama run llama3.2:3b "Hello from Llama"
+```
+If you prefer a bigger model and have more resources, you may try `llama3.1:8b` (and adjust the code accordingly), but the repo is set to `llama3.2:3b` by default.
+
+Troubleshooting tips:
+- If the scripts can’t connect: verify the server is running: `curl http://localhost:11434/api/tags`
+- Firewall: allow local connections to 11434.
+- Resources: models can take several GB of RAM and disk; ensure you have enough space.
+
+## 5 Run once to test
 
 **Windows:**
 ```cmd
@@ -83,8 +127,8 @@ A HTML report appears in .\Output\YYYY-MM-DD-hhmm.html.
 
 Logs go to .\logs\.
 
-## 5 Set-and-forget automation (Windows Task Scheduler)
-### 5.1 Quick install script
+## 6 Set-and-forget automation (Windows Task Scheduler)
+### 6.1 Quick install script
 
 ```powershell
 # from repo root
@@ -96,7 +140,7 @@ Runs at 08:30 and repeats every 6 h (edit inside fb_pipeline_daily if you ship t
 
 Uses the same creds.env for creds & tuning
 
-### 5.2 Manual import (fallback)
+### 6.2 Manual import (fallback)
 
 Open Task Scheduler → Action → Import Task…
 
@@ -104,7 +148,7 @@ Select fb_pipeline_daily.xml.
 
 In the dialog, replace each {{CLONED_PATH}} with your repo path, save.
 
-## 6 Customising
+## 7 Customising
 
 Want…	Do this
 
@@ -118,7 +162,7 @@ Run every 3 hours	Edit <Interval>PT3H</Interval> in fb_pipeline_daily.xml or exp
 
 Debug Selenium	Set DEBUG=1 in creds.env (code checks for it) and the browser stays visible
 
-## 7 Troubleshooting
+## 8 Troubleshooting
 
 Symptom	Fix
 
@@ -128,7 +172,7 @@ Stale‐element or human-check pop-ups	Increase RETRIES/WAIT in creds.env; updat
 
 Push rejected on GitHub	git pull --rebase origin main then git push (see README “first push” section).
 
-## 8 Legal & ethics
+## 9 Legal & ethics
 
 Scraping is subject to Facebook’s TOS; use responsibly.
 
@@ -136,7 +180,7 @@ This repo stores no passwords in code; they stay in your local creds.env.
 
 Ranking logic (Pareto + PROMETHEE) is subjective—always verify listings manually.
 
-## 9 Roadmap
+## 10 Roadmap
 
 ✨ Add Telegram / e-mail notification with top 10 options
 

@@ -8,6 +8,7 @@ from openai import OpenAI
 import easyocr
 from pathlib import Path
 from os import getenv
+import ssl
 try:
     from dotenv import load_dotenv
     load_dotenv("creds.env")  # loads .env in the same folder
@@ -19,17 +20,17 @@ import argparse
 def _parse_args():
     p = argparse.ArgumentParser(description="OCR to Structured Data")
     p.add_argument("--user-city", default=None, help="City of the User")
-    return p.parse_args()
+    return p.parse_known_args()[0]
 
 args = _parse_args()
 
 # -----------------------------
 # Config
 # -----------------------------
-OPENAI_API_KEY = getenv("OPENAI_API_KEY_FBAPP")
-if not OPENAI_API_KEY:
-    raise SystemExit("OPENAI_API_KEY_FBAPP is missing. Add it to .env or your environment.")
-USER_CITY = args.user_city if args.user_city else 'Chicago, IL'
+# For local Ollama usage, an OpenAI API key is not required.
+# Keep reading the variable for potential future cloud usage, but do not enforce it.
+OPENAI_API_KEY = getenv("OPENAI_API_KEY_FBAPP") or ""
+USER_CITY = args.user_city if args.user_city else os.getenv("USER_CITY") or "Chicago, IL"
 OUT_DIR = "screenshots"
 LINKS_CSV = os.path.join(OUT_DIR, "links.csv")
 STRUCTURED_CSV = os.path.join(OUT_DIR, "structured_results.csv")
@@ -71,7 +72,7 @@ condition_rating, seller_name, listed_days_ago.
 """
     # You can bump max_tokens if your OCR text is long
     resp = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="llama3.2:3b",
         messages=[{"role": "user", "content": prompt}],
         temperature=0,
         max_tokens=300
@@ -131,7 +132,16 @@ def iter_links_rows(path: str):
 # Init
 # -----------------------------
 os.makedirs(OUT_DIR, exist_ok=True)
-client = OpenAI(api_key=OPENAI_API_KEY)
+client = OpenAI(base_url = 'http://localhost:11434/v1', api_key='')
+
+# Workaround for SSL certificate issues when EasyOCR downloads models (e.g., on macOS)
+# Set EASYOCR_INSECURE_SSL=0 to disable this behavior and enforce certificate verification.
+if (os.getenv("EASYOCR_INSECURE_SSL", "1").strip().lower() in ("1", "true", "yes")):
+    try:
+        ssl._create_default_https_context = ssl._create_unverified_context
+    except Exception:
+        pass
+
 reader = easyocr.Reader(['en'])
 
 # Prepare structured CSV in append mode; write header only if new

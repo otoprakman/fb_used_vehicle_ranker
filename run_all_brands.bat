@@ -15,7 +15,7 @@ if not defined FB_SEARCH_TERM  set FB_SEARCH_TERM=Toyota Prius
 if not defined RETRIES set RETRIES=2
 if not defined WAIT    set WAIT=20
 if not defined SCROLLS set SCROLLS=5
-if not defined USERCITY set USERCITY=Chicago, IL
+if not defined USER_CITY set USER_CITY=Chicago, IL
 
 rem —--- resolve repo root regardless of location —---
 set REPO=%~dp0
@@ -24,7 +24,7 @@ set SCRIPT="%REPO%run_pipeline.py"
 
 for %%B in (%FB_SEARCH_TERM%) do (
     echo ==== %%~B ====
-    %PY% %SCRIPT% --retries %RETRIES% --wait %WAIT% --scrolls %SCROLLS% --search "%%~B" --user-city "%USERCITY%"
+    %PY% %SCRIPT% --retries %RETRIES% --wait %WAIT% --scrolls %SCROLLS% --search "%%~B" --user-city "%USER_CITY%"
 )
 
 exit /b 0
