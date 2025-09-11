@@ -2,7 +2,7 @@
 #!/usr/bin/env python3
 
 
-import argparse, subprocess, sys, os, time, datetime, pathlib, logging, textwrap
+import argparse, sys, os, time, datetime, pathlib, logging, textwrap, importlib
 
 STEPS = [
     ("Collect screenshots from Facebook",               "FB2screenshot.py"),
@@ -12,24 +12,46 @@ STEPS = [
     ("Build HTML report",                              "report_maker.py"),
 ]
 
-def run_step(name, script_path, retries=1, wait_seconds=10, extra_args=None):
+def run_step(name, script_path, retries=1, wait_seconds=10, user_city=None, search=None, scrolls=None):
     logging.info(" %s", name)
     attempt = 0
     while True:
         attempt += 1
         try:
-            cmd = [sys.executable, script_path] + (extra_args or [])
-            result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-            logging.info(" %s completed.\n%s", name, result.stdout.strip())
-            if result.stderr:
-                logging.warning("stderr from %s:\n%s", script_path, result.stderr.strip())
+            # Set environment variables for the scripts
+            if script_path == "FB2screenshot.py":
+                if search:
+                    os.environ["FB_SEARCH_TERM"] = search
+                if scrolls:
+                    os.environ["FB_SCROLLS"] = str(scrolls)
+            if user_city:
+                os.environ["USER_CITY"] = user_city
+            
+            # Import and call the module's main function directly
+            module_name = script_path[:-3]  # Remove .py extension
+            
+            # Remove module from sys.modules if already imported to force reload
+            if module_name in sys.modules:
+                del sys.modules[module_name]
+            
+            # Import the module and call its main function with parameters
+            module = importlib.import_module(module_name)
+            
+            # Call main function with appropriate parameters
+            if script_path == "FB2screenshot.py":
+                module.main(search=search, user_city=user_city, scrolls=scrolls)
+            elif script_path == "screenshot2structured_data.py":
+                module.main(user_city=user_city)
+            elif script_path == "pareto_finder.py":
+                module.main(user_city=user_city)
+            else:
+                # For other scripts that may not have been updated yet, call main() without parameters
+                module.main()
+            
+            logging.info(" %s completed.", name)
             return True
-        except subprocess.CalledProcessError as e:
+        except Exception as e:
             logging.error(" %s failed (attempt %d): %s", name, attempt, e)
-            if e.stdout:
-                logging.error("stdout:\n%s", e.stdout)
-            if e.stderr:
-                logging.error("stderr:\n%s", e.stderr)
             if attempt > retries:
                 return False
             logging.info("Retrying %s in %d seconds...", name, wait_seconds)
@@ -53,15 +75,6 @@ def main():
     parser.add_argument("--scrolls", default=None, help="Marketplace scrolls count")
     parser.add_argument("--only", choices=["screenshots","ocr","pareto","rank","report"], help="Run only a single stage.")
     args = parser.parse_args()
-
-    extra_ss_args = []
-    if args.search:
-        extra_ss_args += ["--search", args.search]
-    if args.scrolls:
-        extra_ss_args += ["--scrolls", args.scrolls]
-    if args.user_city:
-        extra_ss_args += ["--user-city", args.user_city]
-
 
     ensure_dirs()
     ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -112,12 +125,12 @@ def main():
 
     ok = True
     for name, script_name in plan:
-        extra = extra_ss_args if script_name == "FB2screenshot.py" else None
         if not os.path.exists(script_name):
             logging.error("Required script %s not found in current directory.", script_name)
             ok = False
             break
-        if not run_step(name, script_name, retries=args.retries, wait_seconds=args.wait, extra_args=extra):
+        if not run_step(name, script_name, retries=args.retries, wait_seconds=args.wait, 
+                       user_city=args.user_city, search=args.search, scrolls=args.scrolls):
             ok = False
             break
 
