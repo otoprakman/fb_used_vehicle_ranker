@@ -9,6 +9,7 @@ import easyocr
 from pathlib import Path
 from os import getenv
 import ssl
+from json_repair import repair_json
 try:
     from dotenv import load_dotenv
     load_dotenv("creds.env")  # loads .env in the same folder
@@ -40,17 +41,15 @@ def extract_json_from_response(text: str) -> str:
 
 def ask_openai_structured_data(client: OpenAI, text: str) -> dict:
     prompt = f"""
-Extract the following from the vehicle listing text below:
-- Model year
-- Brand
-- Model
+Extract the following from the product listing text below:
+- Title/Name of the product
+- Brand (if applicable)
+- Model/Type (if applicable)
 - Price in USD (numeric)
 - Location (city, state)
-- Distance in mileage From listing location to User which is {USER_CITY}
-- Mileage
-- Mile per Gallon (fill in based on EPA data if it's null)
-- Title Type (3 if clean title is stated, 2 if it's not, 1 if rebuilt title is stated)
-- Exterior Color
+- Distance from listing location to User which is {USER_CITY}
+- Category (e.g., Electronics, Furniture, Clothing, Vehicles, etc.)
+- Description summary
 - Condition rating (1 to 5 scale, based on condition keywords)
 - Seller Name
 - Listed How Many Days Ago
@@ -58,7 +57,7 @@ Text:
 \"\"\"{text}\"\"\"
 
 Return your response strictly in JSON with keys:
-model_year, brand, model, price, location, distance_away, mileage, mpg, title_type, exterior_color,
+title, brand, model, price, location, distance_away, category, description,
 condition_rating, seller_name, listed_days_ago.
 """
     # You can bump max_tokens if your OCR text is long
@@ -70,16 +69,19 @@ condition_rating, seller_name, listed_days_ago.
     )
     reply = resp.choices[0].message.content.strip()
     clean_json = extract_json_from_response(reply)
+    
+    # Always repair the JSON response from the LLM
+    repaired_json = repair_json(clean_json)
+    # If the string was super broken this will return an empty string
+    if not repaired_json:
+        print("JSON repair returned empty string - original JSON was severely malformed")
+        return {}
+    
     try:
-        return json.loads(clean_json)
-    except Exception:
-        # Fallback: try to salvage common trailing commas/newlines
-        try:
-            clean_json2 = re.sub(r",\s*}", "}", clean_json)
-            return json.loads(clean_json2)
-        except Exception as e:
-            print("JSON parse error:", e)
-            return {}
+        return json.loads(repaired_json)
+    except Exception as e:
+        print("JSON parse error after repair:", e)
+        return {}
 
 
 def load_existing_structured_keys(path: str):
@@ -150,8 +152,8 @@ def main(user_city=None):
         # original files
         "Image", "ExtractedText",
         # extracted from LLM
-        "model_year", "brand", "model", "price", "location","distance_away", "mileage", "mpg",
-        "title_type", "exterior_color", "condition_rating", "seller_name", "listed_days_ago",
+        "title", "brand", "model", "price", "location", "distance_away", "category", "description",
+        "condition_rating", "seller_name", "listed_days_ago",
     ]
     writer = csv.DictWriter(out_f, fieldnames=fieldnames)
     if not structured_exists:
@@ -210,16 +212,14 @@ def main(user_city=None):
             "url": url,
             "Image": image_file,
             "ExtractedText": extracted_text,
-            "model_year": structured.get("model_year"),
+            "title": structured.get("title"),
             "brand": structured.get("brand"),
             "model": structured.get("model"),
             "price": structured.get("price"),
             "location": structured.get("location"),
             "distance_away": structured.get("distance_away"),
-            "mileage": structured.get("mileage"),
-            "mpg": structured.get("mpg"),
-            "title_type": structured.get("title_type"),
-            "exterior_color": structured.get("exterior_color"),
+            "category": structured.get("category"),
+            "description": structured.get("description"),
             "condition_rating": structured.get("condition_rating"),
             "seller_name": structured.get("seller_name"),
             "listed_days_ago": structured.get("listed_days_ago"),

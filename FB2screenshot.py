@@ -74,18 +74,9 @@ def clean_url(url: str) -> str:
     return url.split("?")[0].split("&")[0]
 
 
-def is_vehicle_page(src_lower: str) -> bool:
-    VEHICLE_CUES = [
-        "about this vehicle", "driven", "miles",
-        "automatic transmission", "manual transmission",
-        "fuel type", "mpg",
-        "clean title", "title"
-    ]
-    return any(k in src_lower for k in VEHICLE_CUES)
-
-def matches_brand(src_lower: str, brand: str) -> bool:
-    # Basic brand gate; you can enhance (e.g., also allow model names)
-    return brand.lower() in src_lower
+def matches_search_term(src_lower: str, search_term: str) -> bool:
+    # Basic search term filter; can be enhanced for more sophisticated matching
+    return search_term.lower() in src_lower
 
 # --- Helper ---
 def human_typing(element, text, delay=0.1):
@@ -129,7 +120,7 @@ def seller_is_dealer(driver, wait, timeout=8, dealer_threshold=3) -> bool:
     # trigger lazy-load
     driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
     try:
-        # ① grab every vehicle anchor in the whole page
+        # ① grab every product anchor in the whole page
         raw_links = WebDriverWait(driver, timeout).until(
             EC.presence_of_all_elements_located(
                 (By.XPATH, "//a[contains(@href,'/marketplace/item/')]")
@@ -397,14 +388,11 @@ def main(search=None, user_city=None, scrolls=None):
             else:
                 driver.get(href)
             time.sleep(random.randint(6, 11))
-            # Validate content (guard against boats/houses/sponsored)
+            # Validate content (guard against sponsored/irrelevant pages if needed)
             page_lower = driver.page_source.lower()
-            if not is_vehicle_page(page_lower):
-                print("  Non-vehicle page. Skipping.")
-                if OPEN_IN_NEW_TAB: close_tab_and_back_to_results()
-                continue
-            if not matches_brand(page_lower, FB_SEARCH_TERM):
-                print(f"  Brand mismatch; expected '{FB_SEARCH_TERM}'. Skipping.")
+            # Removed vehicle-specific filtering; now processes all product types
+            if not matches_search_term(page_lower, FB_SEARCH_TERM):
+                print(f"  Search term mismatch; expected '{FB_SEARCH_TERM}'. Skipping.")
                 if OPEN_IN_NEW_TAB: close_tab_and_back_to_results()
                 continue
             # Expand description if present (optional)

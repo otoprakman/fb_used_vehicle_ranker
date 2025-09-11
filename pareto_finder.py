@@ -35,26 +35,25 @@ def pareto_front_mask(df, criteria, eps=0.0):
     return ~dominated  # True = on Pareto front
 
 def main(user_city=None):
-    """Main function to find Pareto-optimal vehicle listings."""
+    """Main function to find Pareto-optimal product listings."""
     USER_CITY = user_city or os.getenv("USER_CITY") or 'Chicago, IL'
     
     # Step 1: Load the dataset
     df = pd.read_csv(r'screenshots\structured_results.csv')
 
-    # Clean mileage
-    df['mileage'] = df['mileage'].replace('[^0-9]', '', regex=True)
-    df['mileage'] = df['mileage'].replace('', np.nan)  # Replace empty strings with NaN
-    df['mileage'] = df['mileage'].astype(float)
+    # Clean numeric fields
     s = df['listed_days_ago'].astype(str).str.replace(r'[^0-9.]', '', regex=True)
     df['listed_days_ago'] = pd.to_numeric(s, errors='coerce')  # '' -> NaN
 
     df['listed_days_ago'] = (pd.Timestamp.now() - pd.to_datetime(df['run_ts'])).dt.days +df['listed_days_ago'].fillna(1)
     # Initialize is_pareto column
     df['is_pareto'] = False
-    df['model'] = df.model.str.split(' ',n=1, expand =True)[0].str.lower()
-    df['brand'] = df.brand.str.lower()
-
-    df['model_year'] = df['model_year'].apply(convert_year)
+    
+    # Clean generic fields
+    if 'brand' in df.columns:
+        df['brand'] = df['brand'].str.lower()
+    if 'category' in df.columns:
+        df['category'] = df['category'].str.lower()
 
     df.columns = df.columns.str.lower()
 
@@ -100,47 +99,31 @@ def main(user_city=None):
     df['distance_away'] = df['location'].apply(calculate_distance)
 
 
-    # Criteria directions
+    # Generic product criteria
     criteria = {
-        'price': 'min',
-        'mileage': 'min',
-        'model_year': 'max',
-        'mpg': 'max',
-        'condition_rating': 'max',
-        'title_type': 'max'
+        'price': 'min',           # Lower price is better
+        'condition_rating': 'max' # Higher condition rating is better
     }
 
-    # Apply Pareto filtering within each brand+model group
-    # criteria example: {"price":"min", "mileage":"min", "year":"max"}
+    # Apply Pareto filtering within each category group
     df['is_pareto'] = False  # init
 
-    for (brand, model), group in df.groupby(['brand', 'model'], sort=False):
-        mask = pareto_front_mask(group, criteria, eps=1e-9)  # True = non-dominated
-        df.loc[group.index, 'is_pareto'] = mask
+    # Group by category if available, otherwise treat all as one group
+    if 'category' in df.columns and not df['category'].isna().all():
+        for category, group in df.groupby(['category'], sort=False):
+            mask = pareto_front_mask(group, criteria, eps=1e-9)  # True = non-dominated
+            df.loc[group.index, 'is_pareto'] = mask
+    else:
+        # If no category, apply to entire dataset
+        mask = pareto_front_mask(df, criteria, eps=1e-9)
+        df['is_pareto'] = mask
 
-
-    # Calculate average yearly mileage
-    df['model_year'] = pd.to_numeric(df['model_year'], errors='coerce')
-
-    df['avg_yearly_mileage'] = df['mileage'] / (datetime.now().year - df['model_year'])
-    df['avg_yearly_mileage'] = df['avg_yearly_mileage'].replace(np.inf, np.nan).fillna((datetime.now().year - df['model_year'])*12000)
-    # Create mileage_suspect column
-    df['mileage_suspect'] = (df['avg_yearly_mileage'] < 7000).astype(int)
-
-    df['seller_type'] = df['image'].str.split('_', n=1, expand=True)[0].replace('listing', value=np.nan)
-
-
-    # PERSONAL FILTERS
-    # df = df[df['mileage_suspect']==0]
-    # df = df[df['listed_days_ago']<=6]
-
-    # df_sub = df[(df['price']>=3500)&(df['price']<=6000)]
-    # df_sub = df_sub[(df_sub['model_year']>2012)]
-    # df_sub = df_sub[(df_sub['mileage']<120000)]
-
+    # Extract seller type from image filename if available
+    if 'image' in df.columns:
+        df['seller_type'] = df['image'].str.split('_', n=1, expand=True)[0].replace('listing', value=np.nan)
 
     # Save or use result
-    df.to_csv(r"Output\used_cars_with_pareto_by_model.csv", index=False)
+    df.to_csv(r"Output\products_with_pareto_by_category.csv", index=False)
 
 
 if __name__ == "__main__":

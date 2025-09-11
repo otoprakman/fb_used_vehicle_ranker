@@ -1,9 +1,9 @@
-# FB Used Vehicle Ranker 🚗🔍
+# FB Marketplace Product Ranker 🛍️🔍
 
 Automates the whole “scroll Facebook Marketplace for hours” routine:
 
 1. **Logs in** to Facebook (Selenium)  
-2. **Takes screenshots** of matching listings  
+2. **Takes screenshots** of matching product listings  
 3. Runs **OCR + GPT** to extract clean data  
 4. Filters the Pareto front, **ranks with PROMETHEE**  
 5. Exports a **clickable HTML report** with just the best options  
@@ -28,8 +28,8 @@ Automates the whole “scroll Facebook Marketplace for hours” routine:
 ## 2  Clone & install
 
 ```bash
-git clone https://github.com/otoprakman/fb_used_vehicle_ranker.git
-cd fb_used_vehicle_ranker
+git clone https://github.com/otoprakman/fb_marketplace_product_ranker.git
+cd fb_marketplace_product_ranker
 
 # create & activate a venv
 python -m venv env
@@ -56,7 +56,7 @@ FB_PASSWORD=super-secret-password
 OPENAI_API_KEY_FBAPP=ultra-secret-key
 
 # --- Run-time settings ---
-FB_SEARCH_TERM="Toyota Prius" "Honda Civic" "Nissan Altima"
+FB_SEARCH_TERM="iPhone" "Gaming Chair" "MacBook Pro"
 RETRIES=2          # webdriver retries per search
 WAIT=20            # seconds to wait between retries
 SCROLLS=5          # how many FB scroll events per search
@@ -119,7 +119,7 @@ Troubleshooting tips:
 ```
 Expected:
 
-A console window shows ==== Toyota Prius ==== etc.
+A console window shows ==== iPhone ==== etc.
 
 New screenshots land in .\screenshots\.
 
@@ -188,4 +188,4 @@ Ranking logic (Pareto + PROMETHEE) is subjective—always verify listings manual
 
 ✨ Docker image for cross-platform scheduling
 
-Enjoy fewer tabs and better deals—happy hunting! 🛻💨
+Enjoy fewer tabs and better deals—happy hunting! 🛍️✨
