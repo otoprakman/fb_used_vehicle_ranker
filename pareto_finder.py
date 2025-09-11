@@ -39,7 +39,7 @@ def main(user_city=None):
     USER_CITY = user_city or os.getenv("USER_CITY") or 'Chicago, IL'
     
     # Step 1: Load the dataset
-    df = pd.read_csv(r'screenshots\structured_results.csv')
+    df = pd.read_csv(os.path.join('screenshots', 'structured_results.csv'))
 
     # Clean numeric fields
     s = df['listed_days_ago'].astype(str).str.replace(r'[^0-9.]', '', regex=True)
@@ -123,7 +123,7 @@ def main(user_city=None):
         df['seller_type'] = df['image'].str.split('_', n=1, expand=True)[0].replace('listing', value=np.nan)
 
     # Save or use result
-    df.to_csv(r"Output\products_with_pareto_by_category.csv", index=False)
+    df.to_csv(os.path.join("Output", "products_with_pareto_by_category.csv"), index=False)
 
 
 if __name__ == "__main__":
