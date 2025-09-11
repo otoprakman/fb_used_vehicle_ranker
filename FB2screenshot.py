@@ -201,8 +201,8 @@ def main(search=None, user_city=None, scrolls=None):
         pass
 
     time.sleep(random.uniform(5, 8))
-    # --- Go to Vehicles and Search ---
-    driver.get("https://www.facebook.com/marketplace/category/vehicles/")
+    # --- Go to Marketplace and Search ---
+    driver.get("https://www.facebook.com/marketplace/?ref=app_tab")
     time.sleep(random.randint(8, 12))
 
     try:
