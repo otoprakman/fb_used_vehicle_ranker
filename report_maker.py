@@ -18,10 +18,10 @@ def row_html(r, out_dir):
     print(img_html)
     price = f"${int(r['price']):,}" if not math.isnan(r['price']) else "N/A"
     cond  = int(r["condition_rating"]) if not math.isnan(r["condition_rating"]) else "N/A"
-    age   = int(r["age"]) if not math.isnan(r["age"]) else "N/A"
     listed = (f"{int(r['listed_days_ago'])} days ago"
               if pd.notna(r["listed_days_ago"]) else "N/A")
-    title = " ".join([str(r.get("brand","") or ""), str(r.get("model","") or "")]).strip() or "(Unknown title)"
+    title = str(r.get("title","") or "Product")
+    category = str(r.get("category","") or "Unknown Category")
     url = r.get("url","") or "#"
     filename_note = str(int(r.get("item_id","None")))
     return f"""
@@ -32,10 +32,9 @@ def row_html(r, out_dir):
           <a href="{url}" target="_blank" style="text-decoration:none;color:#0b57d0">{title}</a>
         </div>
         <div>Price: <b>{price}</b></div>
-        <div>Age: <b>{age}</b> years</div>
+        <div>Category: <b>{category}</b></div>
         <div>Condition rating: <b>{cond}/5</b></div>
         <div>Listed: <b>{listed}</b></div>
-        <div>Model year: {r.get('model_year','')}</div>
         <div>Aprox. Distance: {r.get('distance_away','')}</div>
         <div>Screenshot: {filename_note}</div>
         <div style="margin-top:4px;color:#555">Rank: {r['promethee_rank']:.3f}</div>
@@ -44,10 +43,10 @@ def row_html(r, out_dir):
     """
 
 def main():
-    """Main function to generate HTML report from ranked vehicle data."""
+    """Main function to generate HTML report from ranked product data."""
     
     OUT_DIR = "screenshots"
-    STRUCTURED_CSV = os.path.join('', r"Output\used_cars_promethee_ranked.csv")
+    STRUCTURED_CSV = os.path.join('', r"Output\products_promethee_ranked.csv")
 
     # ---------- 1) Load data ----------
     if not os.path.exists(STRUCTURED_CSV):
@@ -56,45 +55,47 @@ def main():
     df = pd.read_csv(STRUCTURED_CSV)
 
     # Keep only rows with essentials
-    needed = ["url", "item_id", "price", "model_year", "brand", "model", "condition_rating", "listed_days_ago"]
+    needed = ["url", "item_id", "price", "title", "category", "condition_rating", "listed_days_ago"]
     for col in needed:
         if col not in df.columns:
             df[col] = None
 
     # Coerce numerics
-    for col in ["price", "model_year", "condition_rating", "listed_days_ago"]:
+    for col in ["price", "condition_rating", "listed_days_ago"]:
         df[col] = pd.to_numeric(df[col], errors="coerce")
 
-    # Compute age if we have model_year
-    current_year = datetime.now().year
-    df["age"] = current_year - df["model_year"]
-    # df = df[(df['age']<=15)&(df['avg_yearly_mileage']>10000)&(df['listed_days_ago']<7)&(df['title_type']==3)&(df['price']<=6000)&(df['price']>=3500)]
-
     # Drop rows missing key pieces we need to rank
-    rank_df = df.dropna(subset=["price", "age"]).copy()
+    rank_df = df.dropna(subset=["price"]).copy()
     rank_df = rank_df[rank_df["price"] > 0]
-    rank_df = rank_df[(rank_df["age"] >= 0) & (rank_df["age"] <= 50)]  # sanity band
 
     if rank_df.empty:
         raise ValueError("No rows with enough data to rank. Check structured_results.csv contents.")
 
-    rank_df = rank_df.sort_values(by=['brand','model','promethee_rank'])
+    rank_df = rank_df.sort_values(by=['category','promethee_rank'])
 
     # ---------- 3) Build HTML report ----------
 
-    html_rows = "\n".join(
-        row_html(row, OUT_DIR)
-        for _, group in rank_df.groupby(['brand', 'model'])
-        for _, row in group.nsmallest(10, 'promethee_rank').iterrows()
-    )
+    # Group by category if available, otherwise show all products
+    if 'category' in rank_df.columns and not rank_df['category'].isna().all():
+        html_rows = "\n".join(
+            row_html(row, OUT_DIR)
+            for _, group in rank_df.groupby(['category'])
+            for _, row in group.nsmallest(10, 'promethee_rank').iterrows()
+        )
+    else:
+        html_rows = "\n".join(
+            row_html(row, OUT_DIR)
+            for _, row in rank_df.nsmallest(10, 'promethee_rank').iterrows()
+        )
+    
     html = f"""<!doctype html>
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Top 3 Picks</title>
+  <title>Top Products</title>
 </head>
 <body style="font-family:Arial,Helvetica,sans-serif;">
-  <h2>Top 3 Picks for Your Search</h2>
+  <h2>Top Products for Your Search</h2>
   <table cellpadding="8" cellspacing="0" style="border-collapse:collapse;">
     {html_rows}
   </table>

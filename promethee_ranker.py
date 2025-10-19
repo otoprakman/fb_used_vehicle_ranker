@@ -7,39 +7,26 @@ def preference(a, b, direction):
     return max(0, diff)
 
 def main():
-    """Main function to apply PROMETHEE ranking to vehicle listings."""
+    """Main function to apply PROMETHEE ranking to product listings."""
     
     # Load data
-    df = pd.read_csv(r"Output\used_cars_with_pareto_by_model.csv")
+    df = pd.read_csv(r"Output\products_with_pareto_by_category.csv")
 
-    # Clean mileage if needed
-    df['mileage'] = df['mileage'].replace('[^0-9]', '', regex=True).astype(float)
-
-    # Define PROMETHEE weights and directions
+    # Define PROMETHEE weights and directions for generic products
     weights = {
-        'price': 0.4,
-        'mileage': 0.15,
-        'model_year': 0.1,
-        'mpg': 0.05,
-        'condition_rating': 0.05,
-        'title_type': 0.15,
-        'avg_yearly_mileage': 0.1
+        'price': 0.6,           # Price is most important for general products
+        'condition_rating': 0.4 # Condition is secondary
     }
 
     directions = {
-        'price': 'min',
-        'mileage': 'min',
-        'model_year': 'max',
-        'mpg': 'max',
-        'condition_rating': 'max',
-        'title_type': 'max',
-        'avg_yearly_mileage': 'max'
+        'price': 'min',         # Lower price is better
+        'condition_rating': 'max' # Higher condition rating is better
     }
 
-    # Apply PROMETHEE II per brand+model group
+    # Apply PROMETHEE II per category group
     df['promethee_net_flow'] = float('nan')
 
-    for (brand, model), group in df.groupby(['brand', 'model']):
+    for category, group in df.groupby(['category']):
         indices = group.index
         n = len(indices)
         if n < 2:
@@ -62,12 +49,12 @@ def main():
         net_flow = pos_flow - neg_flow
         df.loc[indices, 'promethee_net_flow'] = net_flow
 
-    # Rank cars within each (brand, model) group based on PROMETHEE net flow (higher is better)
-    df['promethee_rank'] = df.groupby(['brand', 'model'])['promethee_net_flow'].rank(method='dense', ascending=False)
+    # Rank products within each category group based on PROMETHEE net flow (higher is better)
+    df['promethee_rank'] = df.groupby(['category'])['promethee_net_flow'].rank(method='dense', ascending=False)
 
-    df = df.sort_values(by=['brand','model','promethee_rank','model_year'])
+    df = df.sort_values(by=['category','promethee_rank','price'])
     # Save result
-    df.to_csv(r"Output\used_cars_promethee_ranked.csv", index=False)
+    df.to_csv(r"Output\products_promethee_ranked.csv", index=False)
 
 
 if __name__ == "__main__":
