@@ -158,6 +158,9 @@ def seller_is_dealer(driver, wait, timeout=8, dealer_threshold=3) -> bool:
 
 def main(search=None, user_city=None, scrolls=None):
     """Main function to collect screenshots from Facebook Marketplace."""
+
+    #TODO:user_city is not used for now for filtering as Facebook account has default location.
+
     global FB_SEARCH_TERM, NUM_SCROLLS
     
     # Update parameters if provided
@@ -399,10 +402,13 @@ def main(search=None, user_city=None, scrolls=None):
             time.sleep(random.randint(6, 11))
             # Validate content (guard against boats/houses/sponsored)
             page_lower = driver.page_source.lower()
-            if not is_vehicle_page(page_lower):
-                print("  Non-vehicle page. Skipping.")
-                if OPEN_IN_NEW_TAB: close_tab_and_back_to_results()
-                continue
+
+            ##### Comment out below if the app will be just for vehicles
+            # if not is_vehicle_page(page_lower):
+            #     print("  Non-vehicle page. Skipping.")
+            #     if OPEN_IN_NEW_TAB: close_tab_and_back_to_results()
+            #     continue
+
             if not matches_brand(page_lower, FB_SEARCH_TERM):
                 print(f"  Brand mismatch; expected '{FB_SEARCH_TERM}'. Skipping.")
                 if OPEN_IN_NEW_TAB: close_tab_and_back_to_results()

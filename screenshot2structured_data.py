@@ -40,7 +40,7 @@ def extract_json_from_response(text: str) -> str:
 
 def ask_openai_structured_data(client: OpenAI, text: str) -> dict:
     prompt = f"""
-Extract the following from the vehicle listing text below:
+Extract the following from the facebook marketplace listing text below, notice that listing can be a vehicle, bike, or anything else:
 - Model year
 - Brand
 - Model
@@ -63,7 +63,8 @@ condition_rating, seller_name, listed_days_ago.
 """
     # You can bump max_tokens if your OCR text is long
     resp = client.chat.completions.create(
-        model="llama3.2:3b",
+        # model="llama3.2:3b",
+        model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}],
         temperature=0,
         max_tokens=300
@@ -129,8 +130,8 @@ def main(user_city=None):
     # Init
     # -----------------------------
     os.makedirs(OUT_DIR, exist_ok=True)
-    client = OpenAI(base_url = 'http://localhost:11434/v1', api_key='')
-
+    # client = OpenAI(base_url = 'http://localhost:11434/v1', api_key='')
+    client = OpenAI(api_key=OPENAI_API_KEY)
     # Workaround for SSL certificate issues when EasyOCR downloads models (e.g., on macOS)
     # Set EASYOCR_INSECURE_SSL=0 to disable this behavior and enforce certificate verification.
     if (os.getenv("EASYOCR_INSECURE_SSL", "1").strip().lower() in ("1", "true", "yes")):
@@ -159,7 +160,7 @@ def main(user_city=None):
 
     # Dedupe sets from prior structured_results.csv
     processed_item_ids, processed_images = load_existing_structured_keys(STRUCTURED_CSV)
-
+    print(processed_item_ids)
     # -----------------------------
     # Main loop: iterate links.csv rows -> OCR -> OpenAI -> append
     # -----------------------------

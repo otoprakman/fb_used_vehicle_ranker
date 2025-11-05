@@ -17,7 +17,7 @@ if not defined WAIT    set WAIT=20
 if not defined SCROLLS set SCROLLS=5
 if not defined USER_CITY set USER_CITY=Chicago, IL
 
-rem —--- resolve repo root regardless of location —---
+rem --- resolve repo root regardless of location ---
 set REPO=%~dp0
 set PY="%REPO%env\Scripts\python.exe"
 set SCRIPT="%REPO%run_pipeline.py"
@@ -26,9 +26,9 @@ rem Prefer comma-separated list for multi-word terms; if no comma, treat as a si
 set "__LIST=%FB_SEARCH_TERM%"
 set "__REMAINDER=%__LIST%"
 
-if not "%__LIST:%=_%"=="%__LIST%" goto :_loop_by_comma
+if not "%__LIST:,=%"=="%__LIST%" goto :_loop_by_comma
 
-rem No commas -> single run with entire string
+rem No commas - single run with entire string
 echo ==== %__LIST% ====
 %PY% %SCRIPT% --retries %RETRIES% --wait %WAIT% --scrolls %SCROLLS% --search "%__LIST%" --user-city "%USER_CITY%"
 goto :eof
