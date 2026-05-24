@@ -6,6 +6,7 @@ __pycache__/
 logs/
 screenshots/
 screenshots_OLD/
+screenshots_OLD2/
 Output/
 
 # --- secrets / local config ---------------------------------------------
@@ -14,3 +15,4 @@ FB2screenshot_wAgent.py
 intervention_agent.py
 analysis.py
 agent_guard.py
+chrome_profile/
